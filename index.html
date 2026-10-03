@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="ระบบบริหารจัดการและแจ้งเตือนภัยพิบัติอัจฉริยะ (Disaster Alert Dashboard) พร้อมระบบตรวจจับและป้องกันข้อมูลเท็จ สำหรับ อปท. และ ปภ." />
+  <title>ระบบแจ้งเตือนและบริหารจัดการภัยพิบัติแห่งชาติ | Disaster Alert Command Center</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+  <!-- App Styles -->
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body class="theme-dark">
+
+  <!-- TOP TICKER & BROADCAST BANNER -->
+  <div class="top-broadcast-bar" id="topBroadcastBar">
+    <div class="broadcast-badge">
+      <span class="live-indicator"></span>
+      <span class="broadcast-tag">ประกาศฉุกเฉิน ปภ.</span>
+    </div>
+    <div class="broadcast-ticker-wrapper">
+      <div class="broadcast-ticker-text" id="broadcastTickerText">
+        ⚠️ เฝ้าระวังระดับน้ำแม่น้ำสาย อ.แม่สาย จ.เชียงราย เพิ่มสูงต่อเนื่อง | เตือนดินถล่ม อ.เวียงป่าเป้า | ฝุ่น PM2.5 เกินมาตรฐาน 5 จังหวัดภาคเหนือ | แผ่นดินไหวขนาด 4.8 อ.ปาย แม่ฮ่องสอน
+      </div>
+    </div>
+    <div class="top-quick-actions">
+      <button class="btn-audio-toggle" id="btnAudioToggle" title="เปิด/ปิดเสียงไซเรนและแจ้งเตือน">
+        <i data-lucide="volume-2"></i>
+        <span class="audio-status-label">เสียง: เปิด</span>
+      </button>
+      <div class="system-time" id="systemClock">00:00:00 ICT</div>
+    </div>
+  </div>
+
+  <!-- MAIN HEADER -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="brand-logo">
+        <div class="logo-shield">
+          <i data-lucide="shield-alert"></i>
+        </div>
+        <div class="brand-text">
+          <div class="brand-title">
+            <span>DISASTER ALERT</span>
+            <span class="badge-hq">COMMAND HQ</span>
+          </div>
+          <div class="brand-subtitle">ระบบบริหารจัดการและแจ้งเตือนภัยพิบัติอัจฉริยะ (อปท. / ปภ.)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Threat Level Status -->
+    <div class="threat-level-card" id="threatLevelCard">
+      <div class="threat-level-label">ระดับการเตือนภัยปัจจุบัน</div>
+      <div class="threat-level-value threat-level-3" id="currentThreatBadge">
+        <span class="pulse-ring"></span>
+        <span class="threat-title" id="currentThreatTitle">ระดับ 3 : เตือนภัยวิกฤต (สีส้ม)</span>
+      </div>
+    </div>
+
+    <!-- Hotlines & Mode Toggle -->
+    <div class="header-right">
+      <div class="emergency-hotlines">
+        <a href="tel:1784" class="hotline-pill" title="สายด่วนนิรภัย กรมป้องกันและบรรเทาสาธารณภัย">
+          <span class="hotline-num">1784</span>
+          <span class="hotline-lbl">ปภ.</span>
+        </a>
+        <a href="tel:1669" class="hotline-pill" title="สถาบันการแพทย์ฉุกเฉินแห่งชาติ">
+          <span class="hotline-num">1669</span>
+          <span class="hotline-lbl">กู้ชีพ</span>
+        </a>
+        <a href="tel:199" class="hotline-pill" title="ดับเพลิงและกู้ภัย">
+          <span class="hotline-num">199</span>
+          <span class="hotline-lbl">ดับเพลิง</span>
+        </a>
+      </div>
+
+      <!-- Theme Toggle (Clean Light / Dark) -->
+      <button class="btn-theme-toggle" id="btnThemeToggle" title="สลับโหมดสว่าง/มืด (Clean Light / Dark)">
+        <i data-lucide="sun" id="themeIcon"></i>
+        <span id="themeLabel">โหมดสว่าง</span>
+      </button>
+
+      <!-- Role Switcher -->
+      <div class="role-switcher">
+        <button class="role-btn active" id="btnRoleOfficer" data-role="officer">
+          <i data-lucide="shield-check"></i>
+          <span>ศูนย์บัญชาการ</span>
+        </button>
+        <button class="role-btn" id="btnRoleCitizen" data-role="citizen">
+          <i data-lucide="user"></i>
+          <span>พอร์ทัลประชาชน</span>
+        </button>
+      </div>
+
+      <button class="btn-sos-pulse" id="btnQuickSos" title="ส่งสัญญาณขอความช่วยเหลือฉุกเฉิน (SOS)">
+        <i data-lucide="siren"></i>
+        <span>แจ้งเหตุด่วน SOS</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- NAVIGATION TABS -->
+  <nav class="app-nav">
+    <div class="nav-container">
+      <ul class="nav-tabs" id="mainNavTabs">
+        <li class="nav-item">
+          <button class="nav-link active" data-tab="tab-map">
+            <i data-lucide="map"></i>
+            <span>แผนที่สถานการณ์สด (GIS Live)</span>
+            <span class="nav-badge count-badge" id="activeIncidentsBadge">6</span>
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" data-tab="tab-antifake">
+            <i data-lucide="shield-x"></i>
+            <span>คัดกรองข้อมูลเท็จ (Anti-Fake)</span>
+            <span class="nav-badge warning-badge" id="pendingVerifyBadge">3</span>
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" data-tab="tab-report">
+            <i data-lucide="file-plus-2"></i>
+            <span>แจ้งเหตุฉุกเฉิน (Citizen Report)</span>
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" data-tab="tab-broadcast">
+            <i data-lucide="radio"></i>
+            <span>กระจายสัญญาณเตือนภัย (Broadcast)</span>
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" data-tab="tab-shelters">
+            <i data-lucide="home"></i>
+            <span>ศูนย์พักพิงและเสบียง (Shelters)</span>
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" data-tab="tab-telemetry">
+            <i data-lucide="activity"></i>
+            <span>เซ็นเซอร์และสถิติ (Telemetry)</span>
+          </button>
+        </li>
+      </ul>
+
+      <div class="nav-actions">
+        <button class="btn-ghost-sm" id="btnOpenSupabaseModal" title="ตั้งค่าเชื่อมต่อฐานข้อมูล Supabase Cloud">
+          <i data-lucide="database"></i>
+          <span id="supabaseStatusLabel">Supabase: ออฟไลน์</span>
+        </button>
+        <button class="btn-ghost-sm" id="btnResetData" title="รีเซ็ตข้อมูลตัวอย่างกลับเป็นค่าเริ่มต้น">
+          <i data-lucide="rotate-ccw"></i>
+          <span>รีเซ็ตเดโม่</span>
+        </button>
+        <button class="btn-ghost-sm" id="btnExportSummary" title="ส่งออกรายงานสถานการณ์ (JSON/CSV)">
+          <i data-lucide="download"></i>
+          <span>ส่งออกรายงาน</span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- MAIN VIEWPORT CONTAINER -->
+  <main class="app-main">
+
+    <!-- ======================================================== -->
+    <!-- TAB 1: GIS LIVE TACTICAL MAP & INCIDENT COMMAND          -->
+    <!-- ======================================================== -->
+    <section class="tab-pane active" id="tab-map">
+      <div class="map-layout">
+        <!-- Map Sidebar / Incident Stream -->
+        <aside class="map-sidebar">
+          <div class="sidebar-header">
+            <div class="sidebar-title">
+              <i data-lucide="radio-tower"></i>
+              <span>เหตุการณ์เฝ้าระวังสด</span>
+            </div>
+            <div class="filter-group">
+              <select id="filterDisasterType" class="select-sm">
+                <option value="all">ทุกประเภทภัยพิบัติ</option>
+                <option value="flood">🌊 อุทกภัย (น้ำท่วม)</option>
+                <option value="landslide">⛰️ ดินถล่ม</option>
+                <option value="fire">🔥 อัคคีภัย / ไฟป่า</option>
+                <option value="storm">🌪️ พายุ / วาตภัย</option>
+                <option value="earthquake">⚡ แผ่นดินไหว</option>
+                <option value="pm25">🌫️ PM2.5 / มลพิษ</option>
+                <option value="chemical">☣️ สารเคมีรั่วไหล</option>
+              </select>
+              <select id="filterSeverity" class="select-sm">
+                <option value="all">ทุกระดับความรุนแรง</option>
+                <option value="4">วิกฤตสูงสุด (ระดับ 4)</option>
+                <option value="3">วิกฤต (ระดับ 3)</option>
+                <option value="2">เฝ้าระวัง (ระดับ 2)</option>
+                <option value="1">ปกติ (ระดับ 1)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Quick Stats Row -->
+          <div class="quick-stats-grid">
+            <div class="stat-card">
+              <div class="stat-val text-red" id="statCriticalCount">2</div>
+              <div class="stat-lbl">วิกฤตฉุกเฉิน</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-val text-amber" id="statWarningCount">4</div>
+              <div class="stat-lbl">เฝ้าระวัง</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-val text-blue" id="statDispatchedCount">12</div>
+              <div class="stat-lbl">ทีมกู้ภัยปฏิบัติการ</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-val text-green" id="statShelterCap">1,420</div>
+              <div class="stat-lbl">รองรับศูนย์พักพิง</div>
+            </div>
+          </div>
+
+          <!-- Incidents List Container -->
+          <div class="incident-list" id="mapIncidentList">
+            <!-- Dynamic incident items injected here -->
+          </div>
+        </aside>
+
+        <!-- Main Map Area -->
+        <div class="map-wrapper">
+          <div id="crisisMap" class="crisis-map"></div>
+
+          <!-- Map Overlay Controls -->
+          <div class="map-overlay-controls">
+            <div class="map-layer-toggles">
+              <span class="layer-title">เลเยอร์แผนที่:</span>
+              <label class="layer-pill active" data-layer="incidents">
+                <input type="checkbox" checked id="layerIncidentsCheck">
+                <span>📍 จุดเกิดเหตุ</span>
+              </label>
+              <label class="layer-pill active" data-layer="shelters">
+                <input type="checkbox" checked id="layerSheltersCheck">
+                <span>🏠 ศูนย์พักพิง</span>
+              </label>
+              <label class="layer-pill active" data-layer="sensors">
+                <input type="checkbox" checked id="layerSensorsCheck">
+                <span>📊 เซ็นเซอร์ระดับน้ำ</span>
+              </label>
+              <label class="layer-pill active" data-layer="cctv">
+                <input type="checkbox" checked id="layerCctvCheck">
+                <span>📹 กล้อง CCTV ปภ.</span>
+              </label>
+              <label class="layer-pill" data-layer="dangerZone">
+                <input type="checkbox" id="layerDangerZoneCheck">
+                <span>⭕ วงรัศมีภัยพิบัติ</span>
+              </label>
+            </div>
+
+            <!-- Map View Presets -->
+            <div class="map-view-presets">
+              <button class="btn-preset" data-view="north">ภาคเหนือ (เชียงราย/แม่ฮ่องสอน)</button>
+              <button class="btn-preset" data-view="central">ภาคกลาง (ลุ่มน้ำเจ้าพระยา)</button>
+              <button class="btn-preset" data-view="south">ภาคใต้ (อ่าวไทย)</button>
+              <button class="btn-preset" data-view="all">ภาพรวมทั้งประเทศ</button>
+            </div>
+          </div>
+
+          <!-- Map Floating Incident Details Card -->
+          <div class="map-floating-details hidden" id="mapFloatingCard">
+            <button class="btn-close-card" id="btnCloseFloatingCard">✕</button>
+            <div class="floating-card-body" id="floatingCardBody">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- TAB 2: ANTI-FAKE & SPAM VERIFICATION SYSTEM              -->
+    <!-- ======================================================== -->
+    <section class="tab-pane" id="tab-antifake">
+      <div class="antifake-container">
+        <!-- Anti-fake Header Explainer -->
+        <div class="antifake-banner">
+          <div class="banner-icon">
+            <i data-lucide="shield-alert"></i>
+          </div>
+          <div class="banner-content">
+            <h3>ระบบตรวจสอบและป้องกันข้อมูลเท็จหลายมิติ (Multi-Factor Anti-Fake Engine)</h3>
+            <p>
+              ป้องกันสแปมและการปั่นกระแสข่าวลวง ด้วย 6 กลไกอัตโนมัติ: 
+              <strong>1) ตรวจสอบเลขประจำตัวประชาชน (Thai ID Mod-11 Checksum)</strong>, 
+              <strong>2) รหัสยืนยัน OTP</strong>, 
+              <strong>3) ตรวจพิกัด Geofencing & GPS Proximity (เทียบระยะทางจริง)</strong>, 
+              <strong>4) AI ตรวจจับคำต้องสงสัย / สแปม</strong>, 
+              <strong>5) การจับกลุ่มรายงานซ้ำในรัศมี 500ม. (Consensus Clustering)</strong>, และ 
+              <strong>6) ลำดับคะแนนความน่าเชื่อถือของผู้แจ้ง (Citizen Trust Score)</strong>
+            </p>
+          </div>
+          <div class="banner-stats">
+            <div class="antifake-stat">
+              <span class="stat-number text-red" id="blockedFakesCount">47</span>
+              <span class="stat-label">รายงานเท็จที่สกัดกั้นได้</span>
+            </div>
+            <div class="antifake-stat">
+              <span class="stat-number text-green" id="accuracyRate">98.4%</span>
+              <span class="stat-label">ความแม่นยำระบบคัดกรอง</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Triage Queue Grid -->
+        <div class="antifake-grid">
+          <!-- Pending Verification Queue -->
+          <div class="triage-panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <i data-lucide="inbox"></i>
+                <span>คิวรอตรวจสอบและคัดกรอง (Verification Triage Queue)</span>
+              </div>
+              <div class="panel-filters">
+                <button class="filter-chip active" data-trust-filter="all">ทั้งหมด</button>
+                <button class="filter-chip text-red" data-trust-filter="suspicious">⚠️ เสี่ยงเท็จสูง (Trust &lt; 40%)</button>
+                <button class="filter-chip text-amber" data-trust-filter="medium">🟡 รอยืนยัน (40-79%)</button>
+                <button class="filter-chip text-green" data-trust-filter="high">🟢 เชื่อถือได้ (&ge; 80%)</button>
+              </div>
+            </div>
+
+            <div class="triage-queue-list" id="triageQueueList">
+              <!-- Dynamically rendered queue items -->
+            </div>
+          </div>
+
+          <!-- Anti-Fake Algorithm Inspector & Rules Manager -->
+          <div class="rules-inspector-panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <i data-lucide="cpu"></i>
+                <span>เครื่องมือวิเคราะห์และกฎตรวจจับ (Verification Inspector)</span>
+              </div>
+            </div>
+
+            <!-- Verification Breakdown Card -->
+            <div class="inspector-card" id="inspectorDetailCard">
+              <div class="inspector-placeholder">
+                <i data-lucide="mouse-pointer-click"></i>
+                <p>คลิกเลือกรายการจากคิวด้านซ้ายเพื่อดูผลการวิเคราะห์คะแนนความน่าเชื่อถืออย่างละเอียด</p>
+              </div>
+            </div>
+
+            <!-- Blacklist & Security Rules -->
+            <div class="security-rules-card">
+              <div class="rules-card-header">
+                <i data-lucide="user-x"></i>
+                <span>บัญชีดำและมาตรการลงโทษ (Blacklist & Cooldown)</span>
+              </div>
+              <div class="blacklist-list" id="blacklistContainer">
+                <!-- Dynamically listed blacklisted IDs/IPs -->
+              </div>
+              <div class="add-blacklist-form">
+                <input type="text" id="inputBlacklistTarget" placeholder="ระบุเลขบัตร ปชช. / เบอร์โทร / IP เพื่อขึ้นบัญชีดำ" class="input-sm" />
+                <button class="btn-danger-sm" id="btnAddBlacklist">
+                  <i data-lucide="ban"></i> บล็อค
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- TAB 3: CITIZEN INCIDENT REPORT (PUBLIC PORTAL)           -->
+    <!-- ======================================================== -->
+    <section class="tab-pane" id="tab-report">
+      <div class="citizen-portal-layout">
+        <div class="report-wizard-card">
+          <!-- Wizard Header -->
+          <div class="wizard-header">
+            <div class="wizard-title-group">
+              <h2>ระบบแจ้งเหตุฉุกเฉินและขอความช่วยเหลือ (Citizen Emergency Report)</h2>
+              <p>ข้อมูลของท่านจะถูกส่งตรงเข้าศูนย์บัญชาการ ปภ. และ อปท. ในพื้นที่ทันที พร้อมระบบตรวจสอบข้อมูลอัตโนมัติ</p>
+            </div>
+            <!-- Anti-fake notice banner -->
+            <div class="legal-warning-box">
+              <i data-lucide="alert-triangle"></i>
+              <span><strong>คำเตือนทางกฎหมาย:</strong> การแจ้งเหตุเท็จหรือสร้างความตื่นตระหนก มีความผิดตาม พ.ร.บ.คอมพิวเตอร์ และกฎหมายอาญา มีโทษจำคุกและปรับ</span>
+            </div>
+          </div>
+
+          <!-- Wizard Progress Steps -->
+          <div class="wizard-steps">
+            <div class="step-node active" data-step="1">
+              <div class="step-circle">1</div>
+              <div class="step-label">ประเภทภัยพิบัติ</div>
+            </div>
+            <div class="step-line"></div>
+            <div class="step-node" data-step="2">
+              <div class="step-circle">2</div>
+              <div class="step-label">พิกัดและสถานที่</div>
+            </div>
+            <div class="step-line"></div>
+            <div class="step-node" data-step="3">
+              <div class="step-circle">3</div>
+              <div class="step-label">รายละเอียด & รูปภาพ</div>
+            </div>
+            <div class="step-line"></div>
+            <div class="step-node" data-step="4">
+              <div class="step-circle">4</div>
+              <div class="step-label">ยืนยันตัวตน (OTP/ID)</div>
+            </div>
+          </div>
+
+          <!-- Multi-Step Form Body -->
+          <form id="citizenReportForm" class="wizard-form">
+            <!-- STEP 1: Incident Type Selection -->
+            <div class="wizard-pane active" id="wizardStep1">
+              <h3 class="step-heading">เลือกประเภทภัยพิบัติหรือเหตุฉุกเฉิน</h3>
+              <div class="disaster-type-selector-grid">
+                <label class="type-card selected">
+                  <input type="radio" name="reportType" value="flood" checked />
+                  <div class="type-icon flood">🌊</div>
+                  <div class="type-info">
+                    <div class="type-name">อุทกภัย / น้ำท่วมฉับพลัน</div>
+                    <div class="type-desc">น้ำป่าไหลหลาก น้ำท่วมขัง น้ำล้นตลิ่ง</div>
+                  </div>
+                </label>
+
+                <label class="type-card">
+                  <input type="radio" name="reportType" value="landslide" />
+                  <div class="type-icon landslide">⛰️</div>
+                  <div class="type-info">
+                    <div class="type-name">ดินโคลนถล่ม / ดินทรุดตัว</div>
+                    <div class="type-desc">ภูเขาถล่ม หินร่วง ปิดทับเส้นทาง</div>
+                  </div>
+                </label>
+
+                <label class="type-card">
+                  <input type="radio" name="reportType" value="fire" />
+                  <div class="type-icon fire">🔥</div>
+                  <div class="type-info">
+                    <div class="type-name">อัคคีภัย / ไฟป่า</div>
+                    <div class="type-desc">เพลิงไหม้อาคาร ไฟป่าลุกลาม ควันหนาแน่น</div>
+                  </div>
+                </label>
+
+                <label class="type-card">
+                  <input type="radio" name="reportType" value="storm" />
+                  <div class="type-icon storm">🌪️</div>
+                  <div class="type-info">
+                    <div class="type-name">วาตภัย / พายุ / ลมกระโชกแรง</div>
+                    <div class="type-desc">หลังคาพัง ต้นไม้ล้มขวาง เสาไฟฟ้าหัก</div>
+                  </div>
+                </label>
+
+                <label class="type-card">
+                  <input type="radio" name="reportType" value="earthquake" />
+                  <div class="type-icon earthquake">⚡</div>
+                  <div class="type-info">
+                    <div class="type-name">แผ่นดินไหว / อาคารถล่ม</div>
+                    <div class="type-desc">แรงสั่นสะเทือน รอยร้าวโครงสร้าง</div>
+                  </div>
+                </label>
+
+                <label class="type-card">
+                  <input type="radio" name="reportType" value="chemical" />
+                  <div class="type-icon chemical">☣️</div>
+                  <div class="type-info">
+                    <div class="type-name">สารเคมี / ก๊าซพิษรั่วไหล</div>
+                    <div class="type-desc">กลิ่นสารเคมีรุนแรง น้ำเน่าเสียจากโรงงาน</div>
+                  </div>
+                </label>
+              </div>
+
+              <div class="urgency-selector">
+                <label class="urgency-title">ระดับความเร่งด่วนของสถานการณ์:</label>
+                <div class="urgency-options">
+                  <label class="urgency-pill level-3">
+                    <input type="radio" name="reportUrgency" value="4" />
+                    <span>🚨 วิกฤตสูงสุด - มีผู้ติดค้าง / ได้รับบาดเจ็บ ต้องการความช่วยเหลือทันที</span>
+                  </label>
+                  <label class="urgency-pill level-2 selected">
+                    <input type="radio" name="reportUrgency" value="3" checked />
+                    <span>⚠️ วิกฤต - น้ำท่วมสูงหรือไฟกำลังลุกลาม เสี่ยงเป็นอันตรายต่อชีวิต</span>
+                  </label>
+                  <label class="urgency-pill level-1">
+                    <input type="radio" name="reportUrgency" value="2" />
+                    <span>🟡 เฝ้าระวัง - ระดับน้ำเริ่มเพิ่มสูง มีแนวโน้มเกิดภัย</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="wizard-nav-buttons">
+                <div></div>
+                <button type="button" class="btn-primary" id="btnStep1Next">
+                  <span>ถัดไป: ระบุพิกัด</span>
+                  <i data-lucide="arrow-right"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- STEP 2: Location & GPS Pinning -->
+            <div class="wizard-pane" id="wizardStep2">
+              <h3 class="step-heading">ระบุพิกัดและสถานที่เกิดเหตุ</h3>
+              
+              <div class="gps-detect-bar">
+                <button type="button" class="btn-gps-detect" id="btnAutoGps">
+                  <i data-lucide="crosshair"></i>
+                  <span>ตรวจจับพิกัดปัจจุบันจาก GPS มือถือ/อุปกรณ์</span>
+                </button>
+                <span class="gps-status-text" id="gpsStatusText">รอรับพิกัด...</span>
+              </div>
+
+              <div class="location-form-grid">
+                <div class="form-group">
+                  <label>จังหวัด <span class="req">*</span></label>
+                  <select id="reportProvince" class="form-control" required>
+                    <option value="">-- เลือกจังหวัด --</option>
+                    <option value="เชียงราย" selected>เชียงราย</option>
+                    <option value="เชียงใหม่">เชียงใหม่</option>
+                    <option value="แม่ฮ่องสอน">แม่ฮ่องสอน</option>
+                    <option value="น่าน">น่าน</option>
+                    <option value="สุโขทัย">สุโขทัย</option>
+                    <option value="พระนครศรีอยุธยา">พระนครศรีอยุธยา</option>
+                    <option value="กรุงเทพมหานคร">กรุงเทพมหานคร</option>
+                    <option value="สุราษฎร์ธานี">สุราษฎร์ธานี</option>
+                    <option value="ภูเก็ต">ภูเก็ต</option>
+                    <option value="อื่นๆ">อื่นๆ</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>อำเภอ / เขต <span class="req">*</span></label>
+                  <input type="text" id="reportDistrict" class="form-control" placeholder="เช่น อ.แม่สาย, อ.เมือง" value="แม่สาย" required />
+                </div>
+                <div class="form-group">
+                  <label>ตำบล / แขวง</label>
+                  <input type="text" id="reportSubdistrict" class="form-control" placeholder="เช่น ต.เวียงพางคำ" value="เวียงพางคำ" />
+                </div>
+                <div class="form-group">
+                  <label>สถานที่สำคัญใกล้เคียง / จุดสังเกต</label>
+                  <input type="text" id="reportLandmark" class="form-control" placeholder="เช่น ใกล้ตลาดสายลมจอย, ซอย 4" value="ใกล้ตลาดสายลมจอย ชุมชนเกาะทราย" />
+                </div>
+              </div>
+
+              <div class="coords-row">
+                <div class="form-group">
+                  <label>ละติจูด (Latitude)</label>
+                  <input type="number" step="any" id="reportLat" class="form-control font-mono" value="20.4325" required />
+                </div>
+                <div class="form-group">
+                  <label>ลองจิจูด (Longitude)</label>
+                  <input type="number" step="any" id="reportLng" class="form-control font-mono" value="99.8805" required />
+                </div>
+                <div class="form-group">
+                  <label>สถานะ Geofencing</label>
+                  <div class="geofence-badge badge-valid" id="geofenceStatusBadge">
+                    <i data-lucide="check-circle"></i> อยู่ในพื้นที่เฝ้าระวัง
+                  </div>
+                </div>
+              </div>
+
+              <!-- Mini pin map -->
+              <div class="mini-map-container">
+                <div class="mini-map-hint">💡 คลิกบนแผนที่ด้านล่างเพื่อปักหมุดตำแหน่งที่เกิดเหตุอย่างแม่นยำ</div>
+                <div id="pickerMap" class="picker-map"></div>
+              </div>
+
+              <div class="wizard-nav-buttons">
+                <button type="button" class="btn-secondary" id="btnStep2Prev">
+                  <i data-lucide="arrow-left"></i> ย้อนกลับ
+                </button>
+                <button type="button" class="btn-primary" id="btnStep2Next">
+                  <span>ถัดไป: รายละเอียดและหลักฐาน</span>
+                  <i data-lucide="arrow-right"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- STEP 3: Details & Evidence Photos -->
+            <div class="wizard-pane" id="wizardStep3">
+              <h3 class="step-heading">รายละเอียดสถานการณ์และภาพถ่ายเหตุการณ์</h3>
+
+              <div class="form-group">
+                <label>หัวข้อ / สรุปเหตุการณ์สั้นๆ <span class="req">*</span></label>
+                <input type="text" id="reportTitle" class="form-control" placeholder="เช่น น้ำป่าหลากเข้าท่วมชั้น 1 ระดับน้ำสูง 1.2 เมตร" value="น้ำท่วมสูงทะลักเข้าชุมชนเกาะทราย รถเล็กสัญจรไม่ได้" required />
+              </div>
+
+              <div class="form-group">
+                <label>รายละเอียดเหตุการณ์ (อธิบายสถานการณ์ สภาพแวดล้อม และสิ่งที่ต้องการช่วยเหลือ) <span class="req">*</span></label>
+                <textarea id="reportDescription" rows="4" class="form-control" placeholder="ระบุข้อมูลที่เกิดขึ้น เช่น มีคนชราติดอยู่ชั้น 2 จำนวน 2 ราย กระแสน้ำเชี่ยวมาก ต้องการเรือท้องแบนและน้ำดื่ม" required>ระดับน้ำท่วมสูงประมาณ 1.2 เมตร กระแสน้ำไหลเชี่ยว มีผู้สูงอายุติดค้างในบ้าน 2 ราย ต้องการเรือท้องแบนช่วยอพยพด่วน</textarea>
+                <div class="nlp-check-hint" id="nlpPreviewHint">
+                  <i data-lucide="sparkles"></i> AI Spam & Anomaly Checker: <span class="text-green">ข้อความสมบูรณ์ ชัดเจน ไม่พบคำส่อเจตนาลวง</span>
+                </div>
+              </div>
+
+              <div class="people-affected-grid">
+                <div class="form-group">
+                  <label>จำนวนผู้ประสบภัย / ผู้ติดค้าง (โดยประมาณ)</label>
+                  <input type="number" id="reportVictimsCount" class="form-control" min="0" value="2" />
+                </div>
+                <div class="form-group">
+                  <label>มีกลุ่มเปราะบางหรือไม่ (เด็ก / ผู้สูงอายุ / ผู้ป่วยติดเตียง)</label>
+                  <select id="reportVulnerable" class="form-control">
+                    <option value="yes_elderly">มี - ผู้สูงอายุ / ผู้ป่วย</option>
+                    <option value="yes_child">มี - เด็กเล็ก</option>
+                    <option value="no">ไม่มีกลุ่มเปราะบาง</option>
+                    <option value="unknown">ไม่แน่ใจ</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Photo Upload with Simulated EXIF / Authenticity -->
+              <div class="photo-upload-section">
+                <label class="upload-label">
+                  <i data-lucide="camera"></i>
+                  <span>แนบภาพถ่ายเหตุการณ์จริง (เพิ่มความน่าเชื่อถือ +25%)</span>
+                </label>
+                <div class="upload-dropzone" id="photoDropzone">
+                  <input type="file" id="reportPhotoInput" accept="image/*" class="file-input-hidden" />
+                  <div class="dropzone-content" id="dropzoneContent">
+                    <div class="dropzone-icon">📷</div>
+                    <div class="dropzone-text">
+                      <strong>คลิกเพื่อถ่ายภาพจากกล้อง</strong> หรือเลือกไฟล์รูปภาพจากเครื่อง
+                    </div>
+                    <div class="dropzone-sub">ระบบจะตรวจตราประทับเวลา (Timestamp) และพิกัดภาพ เพื่อยืนยันความถูกต้อง</div>
+                  </div>
+                  <div class="photo-preview-box hidden" id="photoPreviewBox">
+                    <img id="photoPreviewImg" src="" alt="หลักฐานภาพถ่าย" />
+                    <div class="photo-meta-tag">
+                      <span class="meta-status">✓ ตรวจสอบภาพจริงแล้ว</span>
+                      <button type="button" class="btn-remove-photo" id="btnRemovePhoto">✕ ลบรูป</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="wizard-nav-buttons">
+                <button type="button" class="btn-secondary" id="btnStep3Prev">
+                  <i data-lucide="arrow-left"></i> ย้อนกลับ
+                </button>
+                <button type="button" class="btn-primary" id="btnStep3Next">
+                  <span>ถัดไป: ยืนยันตัวตนผู้แจ้ง</span>
+                  <i data-lucide="arrow-right"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- STEP 4: Citizen Verification & Anti-Fake Check -->
+            <div class="wizard-pane" id="wizardStep4">
+              <h3 class="step-heading">ยืนยันตัวตนผู้แจ้งเหตุ (Anti-Fake Multi-Factor Verification)</h3>
+              
+              <div class="verification-intro-box">
+                <i data-lucide="shield-check"></i>
+                <div class="intro-text">
+                  <strong>ทำไมต้องยืนยันตัวตน?</strong>
+                  <p>เพื่อป้องกันมิจฉาชีพและผู้ไม่หวังดีแจ้งข้อมูลเท็จ ซึ่งอาจทำให้เจ้าหน้าที่จัดสรรทรัพยากรผิดพลาดและเป็นอันตรายต่อผู้ประสบภัยจริง</p>
+                </div>
+              </div>
+
+              <div class="identity-form-grid">
+                <div class="form-group">
+                  <label>ชื่อ - นามสกุล ผู้แจ้ง <span class="req">*</span></label>
+                  <input type="text" id="reporterName" class="form-control" placeholder="เช่น นายสมศักดิ์ รักถิ่น" value="นายสมศักดิ์ รักถิ่น" required />
+                </div>
+                <div class="form-group">
+                  <label>เบอร์โทรศัพท์ติดต่อกลับ <span class="req">*</span></label>
+                  <div class="input-with-action">
+                    <input type="tel" id="reporterPhone" class="form-control font-mono" placeholder="เช่น 0812345678" value="0897654321" required />
+                    <button type="button" class="btn-action-inline" id="btnSendOtp">
+                      <span>ขอรหัส OTP</span>
+                    </button>
+                  </div>
+                </div>
+                
+                <div class="form-group">
+                  <label>เลขประจำตัวประชาชน 13 หลัก <span class="req">*</span></label>
+                  <div class="id-input-wrapper">
+                    <input type="text" id="reporterCitizenId" maxlength="13" class="form-control font-mono" placeholder="ระบุเลข 13 หลัก (มีระบบตรวจ Mod-11)" value="1103702456891" required />
+                    <div class="id-validity-icon" id="idValidityBadge">
+                      <span class="badge-valid-pill">✓ รูปแบบถูกต้อง</span>
+                    </div>
+                  </div>
+                  <div class="input-hint" id="idHintText">ระบบตรวจสอบ Checksum 13 หลักตามมาตรฐานกรมการปกครอง</div>
+                </div>
+
+                <div class="form-group">
+                  <label>รหัสยืนยัน OTP (6 หลัก)</label>
+                  <div class="input-with-action">
+                    <input type="text" id="reporterOtp" maxlength="6" class="form-control font-mono" placeholder="กรอก OTP ที่ได้รับ" value="849201" />
+                    <span class="otp-badge verified" id="otpStatusBadge">✓ ยืนยัน OTP สำเร็จ</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Real-time Live Fake Score Preview -->
+              <div class="trust-score-live-meter">
+                <div class="meter-header">
+                  <span class="meter-title">⚡ ดัชนีความน่าเชื่อถือของข้อมูลเบื้องต้น (Real-Time Trust Score):</span>
+                  <span class="meter-score font-mono" id="liveTrustScoreVal">92 / 100</span>
+                </div>
+                <div class="score-progress-bar">
+                  <div class="score-progress-fill high" id="liveTrustProgressFill" style="width: 92%;"></div>
+                </div>
+                <div class="meter-factors" id="liveTrustFactors">
+                  <span class="factor-tag valid">✓ รหัส ปชช. ถูกต้อง (+30)</span>
+                  <span class="factor-tag valid">✓ ยืนยันเบอร์ OTP (+25)</span>
+                  <span class="factor-tag valid">✓ พิกัด GPS ตรงพื้นที่ (+20)</span>
+                  <span class="factor-tag valid">✓ มีหลักฐานภาพถ่าย (+15)</span>
+                  <span class="factor-tag valid">✓ ผ่านการกรองคำสแปม (+10)</span>
+                </div>
+              </div>
+
+              <div class="wizard-nav-buttons">
+                <button type="button" class="btn-secondary" id="btnStep4Prev">
+                  <i data-lucide="arrow-left"></i> ย้อนกลับ
+                </button>
+                <button type="submit" class="btn-submit-emergency" id="btnSubmitReport">
+                  <i data-lucide="send"></i>
+                  <span>ส่งรายงานเหตุฉุกเฉินเข้าสู่ศูนย์บัญชาการ</span>
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <!-- Citizen Help Guide & FAQ Sidebar -->
+        <aside class="citizen-guide-sidebar">
+          <div class="guide-card emergency-callouts">
+            <h4><i data-lucide="phone-call"></i> เบอร์โทรสายด่วนฉุกเฉิน 24 ชม.</h4>
+            <div class="hotline-big-item">
+              <div class="hotline-big-num">1784</div>
+              <div class="hotline-big-desc">กรมป้องกันและบรรเทาสาธารณภัย (ปภ.) แจ้งเตือนภัย รับแจ้งเหตุด่วนตลอด 24 ชั่วโมง</div>
+            </div>
+            <div class="hotline-big-item">
+              <div class="hotline-big-num">1669</div>
+              <div class="hotline-big-desc">หน่วยแพทย์ฉุกเฉิน กู้ชีพ กู้ภัย ทั่วประเทศ</div>
+            </div>
+            <div class="hotline-big-item">
+              <div class="hotline-big-num">1193</div>
+              <div class="hotline-big-desc">ตำรวจทางหลวง ตรวจสอบเส้นทางน้ำท่วม ดินถล่ม</div>
+            </div>
+          </div>
+
+          <div class="guide-card safety-tips">
+            <h4><i data-lucide="info"></i> ข้อควรปฏิบัติเมื่อเกิดอุทกภัย</h4>
+            <ul class="tips-list">
+              <li>ตัดสะพานไฟและปิดวาล์วก๊าซหุงต้มทันที</li>
+              <li>ย้ายสิ่งของมีค่าและสัตว์เลี้ยงขึ้นที่สูง</li>
+              <li>หลีกเลี่ยงการเดินลุยน้ำเชี่ยวหรือเข้าใกล้เสาไฟฟ้า</li>
+              <li>ติดตามการแจ้งเตือนจาก Cell Broadcast ของภาครัฐอย่างต่อเนื่อง</li>
+            </ul>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- TAB 4: EMERGENCY CELL BROADCAST & SIREN SIMULATOR        -->
+    <!-- ======================================================== -->
+    <section class="tab-pane" id="tab-broadcast">
+      <div class="broadcast-container">
+        <div class="broadcast-composer-grid">
+          <!-- Broadcast Editor Form -->
+          <div class="composer-card">
+            <div class="card-header">
+              <div class="card-title">
+                <i data-lucide="radio"></i>
+                <span>ระบบกระจายเสียงเตือนภัยฉุกเฉิน (Emergency Cell Broadcast / SMS System)</span>
+              </div>
+              <span class="badge-authorized">🔒 เจ้าหน้าที่ ปภ. ได้รับอนุญาต</span>
+            </div>
+
+            <form id="broadcastForm" class="composer-form">
+              <div class="form-row">
+                <div class="form-group flex-1">
+                  <label>ระดับความรุนแรงของการแจ้งเตือน (Alert Severity Level) <span class="req">*</span></label>
+                  <select id="broadcastLevel" class="form-control select-severity">
+                    <option value="extreme" class="opt-red">🔴 ระดับสูงสุด (Extreme Alert) - สั่งอพยพทันที / ภัยพิบัติร้ายแรง</option>
+                    <option value="severe" class="opt-orange" selected>🟠 ระดับรุนแรง (Severe Alert) - เตือนภัยวิกฤต เตรียมความพร้อม</option>
+                    <option value="advisory" class="opt-yellow">🟡 ระดับเฝ้าระวัง (Advisory) - เฝ้าติดตามสถานการณ์</option>
+                    <option value="test" class="opt-blue">🔵 ทดสอบระบบ (System Test) - ส่งข้อความทดสอบ</option>
+                  </select>
+                </div>
+                <div class="form-group flex-1">
+                  <label>ช่องทางการกระจายสัญญาณ (Channels)</label>
+                  <div class="checkbox-row">
+                    <label class="channel-check"><input type="checkbox" checked id="chkCellBroadcast"> Cell Broadcast (เสาสัญญาณ 5G/4G)</label>
+                    <label class="channel-check"><input type="checkbox" checked id="chkSms"> SMS Push</label>
+                    <label class="channel-check"><input type="checkbox" checked id="chkLineAlert"> LINE Alert</label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group flex-1">
+                  <label>พื้นที่เป้าหมาย (Target Geofence / พื้นที่ครอบคลุม) <span class="req">*</span></label>
+                  <select id="broadcastTargetArea" class="form-control">
+                    <option value="chiangrai_all">จังหวัดเชียงราย (ทุกอำเภอ)</option>
+                    <option value="chiangrai_maesai" selected>อ.แม่สาย จ.เชียงราย (ริมแม่น้ำสาย / ชุมชนเกาะทราย / ตลาดสายลมจอย)</option>
+                    <option value="chiangrai_wiangpapao">อ.เวียงป่าเป้า จ.เชียงราย (พื้นที่เสี่ยงดินถล่ม)</option>
+                    <option value="maehongson_pai">อ.ปาย จ.แม่ฮ่องสอน (พื้นที่เฝ้าระวังแผ่นดินไหว)</option>
+                    <option value="chao_phraya_basin">ลุ่มน้ำเจ้าพระยา (อยุธยา / อ่างทอง / สิงห์บุรี / ชัยนาท)</option>
+                    <option value="nationwide">ครอบคลุมทั้งประเทศ (National Broadcast)</option>
+                  </select>
+                </div>
+                <div class="form-group flex-1">
+                  <label>การส่งเสียงเตือนไซเรนบนโทรศัพท์ประชาชน (Siren Sound)</label>
+                  <select id="broadcastSirenType" class="form-control">
+                    <option value="high_pitch">🔊 ไซเรนฉุกเฉินระดับสูงสุด (EAS Siren - เสียงดังแม้ปิดเสียง)</option>
+                    <option value="urgent_chime" selected>🔔 เสียงระฆังเตือนภัยวิกฤต (Urgent Chime)</option>
+                    <option value="silent">🔕 ข้อความเงียบ (Silent Notification)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label>หัวข้อการแจ้งเตือน (Alert Headline) <span class="req">*</span></label>
+                <input type="text" id="broadcastHeadline" class="form-control font-bold" value="[ปภ. เตือนภัยฉุกเฉิน] ประกาศอพยพด่วนริมแม่น้ำสาย อ.แม่สาย จ.เชียงราย" required />
+              </div>
+
+              <div class="form-group">
+                <label>ข้อความแจ้งเตือนถึงประชาชน (Broadcast Message Body - TH / EN) <span class="req">*</span></label>
+                <textarea id="broadcastBody" rows="4" class="form-control" required>เนื่องจากระดับน้ำแม่น้ำสายเพิ่มสูงขึ้นอย่างรวดเร็วและทะลักล้นตลิ่ง ขอให้ประชาชนในชุมชนเกาะทราย ตลาดสายลมจอย และพื้นที่ลุ่มต่ำ ยกของขึ้นที่สูง ตัดสะพานไฟ และอพยพไปยังศูนย์พักพิง รร.เทศบาล 1 ทันที สอบถามสายด่วน 1784</textarea>
+              </div>
+
+              <div class="form-row action-row">
+                <button type="button" class="btn-test-siren" id="btnTestBroadcastSiren">
+                  <i data-lucide="volume-2"></i> ทดสอบเสียงไซเรน
+                </button>
+                <button type="submit" class="btn-broadcast-submit" id="btnSendBroadcast">
+                  <i data-lucide="send"></i>
+                  <span>ส่งสัญญาณ Cell Broadcast สู่เสาสัญญาณทันที</span>
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Smartphone Live Preview Simulator -->
+          <div class="phone-preview-wrapper">
+            <div class="phone-device-frame">
+              <div class="phone-notch"></div>
+              <div class="phone-screen">
+                <div class="phone-status-bar">
+                  <span class="phone-clock" id="phoneClock">12:00</span>
+                  <span class="phone-icons">5G 📶 100% 🔋</span>
+                </div>
+
+                <!-- Simulated Emergency Alert Popup -->
+                <div class="cell-broadcast-popup" id="phoneAlertBox">
+                  <div class="alert-popup-header">
+                    <div class="alert-popup-icon">⚠️</div>
+                    <div class="alert-popup-title">EMERGENCY ALERT</div>
+                    <div class="alert-popup-sub">การแจ้งเตือนภัยฉุกเฉินระดับชาติ</div>
+                  </div>
+                  <div class="alert-popup-body">
+                    <h4 id="phonePreviewHeadline">[ปภ. เตือนภัยฉุกเฉิน] ประกาศอพยพด่วนริมแม่น้ำสาย</h4>
+                    <p id="phonePreviewMessage">เนื่องจากระดับน้ำแม่น้ำสายเพิ่มสูงขึ้นอย่างรวดเร็ว ขอให้ประชาชนในพื้นที่เสี่ยงอพยพไปยังศูนย์พักพิงทันที สายด่วน 1784</p>
+                  </div>
+                  <div class="alert-popup-footer">
+                    <button type="button" class="btn-phone-ack" id="btnPhoneAck">รับทราบ (Acknowledge)</button>
+                  </div>
+                </div>
+
+                <div class="phone-home-indicator"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Broadcast History Log -->
+        <div class="broadcast-history-card">
+          <div class="card-header">
+            <div class="card-title">
+              <i data-lucide="history"></i>
+              <span>ประวัติการกระจายสัญญาณเตือนภัยล่าสุด (Broadcast History & Transmission Logs)</span>
+            </div>
+          </div>
+          <div class="broadcast-logs-table-wrapper">
+            <table class="broadcast-logs-table" id="broadcastLogsTable">
+              <thead>
+                <tr>
+                  <th>เวลาส่ง (Timestamp)</th>
+                  <th>ระดับภัย</th>
+                  <th>พื้นที่เป้าหมาย</th>
+                  <th>หัวข้อประกาศ</th>
+                  <th>ช่องทาง</th>
+                  <th>สถานะเสาสัญญาณ</th>
+                </tr>
+              </thead>
+              <tbody id="broadcastLogsBody">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- TAB 5: SHELTERS & EVACUATION MANAGEMENT                  -->
+    <!-- ======================================================== -->
+    <section class="tab-pane" id="tab-shelters">
+      <div class="shelters-container">
+        <!-- Shelter Summary Bar -->
+        <div class="shelter-summary-bar">
+          <div class="summary-metric">
+            <span class="metric-val text-blue" id="totalSheltersCount">6</span>
+            <span class="metric-lbl">ศูนย์พักพิงที่เปิดทำการ</span>
+          </div>
+          <div class="summary-metric">
+            <span class="metric-val text-amber" id="totalOccupantsCount">985</span>
+            <span class="metric-lbl">ผู้พักพิงปัจจุบัน (คน)</span>
+          </div>
+          <div class="summary-metric">
+            <span class="metric-val text-green" id="totalCapacityCount">2,400</span>
+            <span class="metric-lbl">ความจุรวมสูงสุด (คน)</span>
+          </div>
+          <div class="summary-metric">
+            <span class="metric-val text-cyan" id="foodRationsCount">4,500</span>
+            <span class="metric-lbl">ชุดยังชีพ/อาหารพร้อมแจก</span>
+          </div>
+          <div class="shelter-action-btns">
+            <button class="btn-primary-sm" id="btnOpenNewShelter">
+              <i data-lucide="plus"></i> เพิ่มศูนย์พักพิงใหม่
+            </button>
+          </div>
+        </div>
+
+        <!-- Shelters Grid -->
+        <div class="shelters-grid" id="sheltersListGrid">
+          <!-- Dynamically populated shelter cards -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- TAB 6: TELEMETRY & IOT SENSOR ANALYTICS                  -->
+    <!-- ======================================================== -->
+    <section class="tab-pane" id="tab-telemetry">
+      <div class="telemetry-container">
+        <div class="telemetry-grid">
+          <!-- River Water Level Telemetry -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <div class="chart-title">
+                <i data-lucide="waves"></i>
+                <span>โทรมาตรระดับน้ำสถานีหลัก 24 ชั่วโมง (River Water Level Telemetry - m MSL)</span>
+              </div>
+              <span class="badge-live-stream">● สดทุก 5 นาที</span>
+            </div>
+            <div class="chart-canvas-wrapper">
+              <canvas id="waterLevelChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Rain Accumulation Chart -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <div class="chart-title">
+                <i data-lucide="cloud-rain"></i>
+                <span>ปริมาณน้ำฝนสะสมรายชั่วโมง (Rain Accumulation mm)</span>
+              </div>
+              <span class="badge-live-stream">● Radar Telemetry</span>
+            </div>
+            <div class="chart-canvas-wrapper">
+              <canvas id="rainfallChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Disaster Category Distribution -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <div class="chart-title">
+                <i data-lucide="pie-chart"></i>
+                <span>สัดส่วนเหตุภัยพิบัติจำแนกตามประเภท (Incident Distribution)</span>
+              </div>
+            </div>
+            <div class="chart-canvas-wrapper">
+              <canvas id="disasterTypeChart"></canvas>
+            </div>
+          </div>
+
+          <!-- PM2.5 & Air Quality Gauge -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <div class="chart-title">
+                <i data-lucide="wind"></i>
+                <span>ดัชนีคุณภาพอากาศและฝุ่นละออง PM2.5 (Air Quality Index)</span>
+              </div>
+            </div>
+            <div class="chart-canvas-wrapper">
+              <canvas id="pm25Chart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ======================================================== -->
+  <!-- MODALS & OVERLAYS                                        -->
+  <!-- ======================================================== -->
+
+  <!-- Quick SOS Floating Modal -->
+  <div class="modal-overlay hidden" id="sosModalOverlay">
+    <div class="sos-modal-card">
+      <button class="modal-close-btn" id="btnCloseSosModal">✕</button>
+      <div class="sos-modal-header">
+        <div class="sos-siren-animation">
+          <i data-lucide="siren"></i>
+        </div>
+        <h2>ส่งสัญญาณขอความช่วยเหลือฉุกเฉิน (SOS Emergency)</h2>
+        <p>สำหรับกรณีวิกฤตติดค้าง หรือต้องการกู้ชีพด่วนที่สุด ระบบจะส่งพิกัด GPS อัตโนมัติไปยังศูนย์สั่งการ</p>
+      </div>
+      <div class="sos-modal-body">
+        <div class="sos-coords-display">
+          <div class="sos-coord-item">
+            <span class="coord-lbl">พิกัด GPS ปัจจุบัน:</span>
+            <span class="coord-val font-mono" id="sosCurrentCoords">20.4325° N, 99.8805° E</span>
+          </div>
+          <div class="sos-coord-item">
+            <span class="coord-lbl">ความแม่นยำ:</span>
+            <span class="coord-val text-green">รัศมี 8 เมตร (ความแม่นยำสูง)</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>ระบุจำนวนคนและสถานการณ์เร่งด่วน:</label>
+          <input type="text" id="sosQuickDesc" class="form-control" placeholder="เช่น ผู้สูงอายุ 2 คน น้ำขึ้นสูงถึงหน้าอก ติดอยู่บนโต๊ะ" value="น้ำท่วมทะลักถึงเอว มีผู้ป่วย 1 คน และเด็ก 1 คน ต้องการเรือด่วน" />
+        </div>
+        <div class="form-group">
+          <label>เบอร์โทรติดต่อกลับด่วน:</label>
+          <input type="tel" id="sosQuickPhone" class="form-control font-mono" placeholder="08XXXXXXXX" value="0819998877" />
+        </div>
+        <div class="sos-hotline-buttons">
+          <a href="tel:1669" class="btn-sos-call">
+            <i data-lucide="phone"></i> โทร 1669 กู้ชีพทันที
+          </a>
+          <button type="button" class="btn-sos-confirm" id="btnConfirmSos">
+            <i data-lucide="send"></i> ส่งสัญญาณ SOS เข้าระบบ ปภ.
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CCTV Camera Live Feed Modal -->
+  <div class="modal-overlay hidden" id="cctvModalOverlay">
+    <div class="cctv-modal-card">
+      <button class="modal-close-btn" id="btnCloseCctvModal">✕</button>
+      <div class="cctv-modal-header">
+        <div class="cctv-cam-title">
+          <i data-lucide="video"></i>
+          <span id="cctvLocationName">กล้อง CCTV สะพานมิตรภาพแม่สาย 1</span>
+        </div>
+        <div class="cctv-live-tag">
+          <span class="cam-dot"></span> LIVE 1080P
+        </div>
+      </div>
+      <div class="cctv-video-container">
+        <div class="cctv-stream-placeholder" id="cctvStreamCanvas">
+          <!-- Simulated animated CCTV canvas stream -->
+          <div class="cctv-overlay-info">
+            <div class="cctv-meta-top">CAM #04 - MAESAI RIVER BRIDGE | PTZ 01</div>
+            <div class="cctv-meta-time" id="cctvMetaTime">2026-10-02 23:27:00 ICT</div>
+            <div class="cctv-water-gauge-overlay">ระดับน้ำปัจจุบัน: <span class="text-red font-bold">5.80 ม. (ล้นตลิ่ง +0.80 ม.)</span></div>
+          </div>
+          <div class="cctv-visual-layer" id="cctvVisualLayer">
+            <!-- Dynamic visual rendering -->
+          </div>
+        </div>
+      </div>
+      <div class="cctv-modal-footer">
+        <div class="cctv-footer-info">
+          <span>พิกัดกล้อง: 20.4431° N, 99.8821° E</span> | 
+          <span>เซ็นเซอร์ระดับน้ำ: วิกฤตระดับ 4</span>
+        </div>
+        <button class="btn-secondary-sm" id="btnSnapshotCctv">
+          <i data-lucide="camera"></i> บันทึกภาพ Snapshot
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Officer Dispatch Modal -->
+  <div class="modal-overlay hidden" id="dispatchModalOverlay">
+    <div class="dispatch-modal-card">
+      <button class="modal-close-btn" id="btnCloseDispatchModal">✕</button>
+      <div class="dispatch-modal-header">
+        <i data-lucide="truck"></i>
+        <div>
+          <h3>สั่งการและระดมทีมกู้ภัย (Dispatch Tactical Units)</h3>
+          <p id="dispatchIncidentTitle">เหตุการณ์: น้ำท่วมฉับพลัน ชุมชนเกาะทราย อ.แม่สาย</p>
+        </div>
+      </div>
+      <div class="dispatch-modal-body">
+        <div class="resource-picker-list">
+          <label class="resource-pick-item">
+            <input type="checkbox" checked value="boat_team" />
+            <div class="res-icon">🚤</div>
+            <div class="res-info">
+              <div class="res-name">ทีมเรือท้องแบนกู้ภัย ปภ. (3 ลำ)</div>
+              <div class="res-eta">ระยะเวลาเดินทาง: ~15 นาที</div>
+            </div>
+          </label>
+          <label class="resource-pick-item">
+            <input type="checkbox" checked value="medic_team" />
+            <div class="res-icon">🚑</div>
+            <div class="res-info">
+              <div class="res-name">หน่วยแพทย์ฉุกเฉิน ALS 1669 (2 คัน)</div>
+              <div class="res-eta">ระยะเวลาเดินทาง: ~10 นาที</div>
+            </div>
+          </label>
+          <label class="resource-pick-item">
+            <input type="checkbox" value="pump_truck" />
+            <div class="res-icon">🚒</div>
+            <div class="res-info">
+              <div class="res-name">รถสูบส่งน้ำระยะไกล ปภ. (1 คัน)</div>
+              <div class="res-eta">ระยะเวลาเดินทาง: ~25 นาที</div>
+            </div>
+          </label>
+          <label class="resource-pick-item">
+            <input type="checkbox" value="heli_ka32" />
+            <div class="res-icon">🚁</div>
+            <div class="res-info">
+              <div class="res-name">เฮลิคอปเตอร์กู้ภัย ปภ. KA-32 (สแตนด์บาย)</div>
+              <div class="res-eta">พร้อมบินใน: ~30 นาที</div>
+            </div>
+          </label>
+        </div>
+        <div class="form-group">
+          <label>คำสั่งปฏิบัติการเฉพาะกิจ:</label>
+          <input type="text" id="dispatchNotes" class="form-control" value="เข้าช่วยเหลือผู้สูงอายุและเด็กที่ติดค้างในซอย 4 ก่อน พร้อมส่งอาหารกล่องและน้ำดื่ม" />
+        </div>
+      </div>
+      <div class="dispatch-modal-footer">
+        <button class="btn-secondary" id="btnCancelDispatch">ยกเลิก</button>
+        <button class="btn-primary" id="btnConfirmDispatch">
+          <i data-lucide="check"></i> ยืนยันการสั่งการ (Dispatch Units)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Supabase Cloud Settings Modal -->
+  <div class="modal-overlay hidden" id="supabaseModalOverlay">
+    <div class="dispatch-modal-card" style="max-width: 580px;">
+      <button class="modal-close-btn" id="btnCloseSupabaseModal">✕</button>
+      <div class="dispatch-modal-header">
+        <i data-lucide="database" style="color: #10b981;"></i>
+        <div>
+          <h3>เชื่อมต่อฐานข้อมูล Supabase Cloud (PostgreSQL Realtime)</h3>
+          <p>ซิงค์ข้อมูลเหตุการณ์ภัยพิบัติ รายงานคัดกรอง และศูนย์พักพิงขึ้นคลาวด์แบบเรียลไทม์</p>
+        </div>
+      </div>
+      <div class="dispatch-modal-body">
+        <div style="background: var(--bg-surface-elevated); padding: 12px 16px; border-radius: 8px; font-size: 0.82rem; border: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between;">
+          <span>สถานะการเชื่อมต่อปัจจุบัน:</span>
+          <span id="supabaseModalStatusBadge" class="badge-valid-pill" style="background: #f1f5f9; color: #64748b;">⚪ โหมดออฟไลน์ / LocalStorage</span>
+        </div>
+
+        <div class="form-group">
+          <label>Supabase Project URL <span class="req">*</span></label>
+          <input type="url" id="inputSupabaseUrl" class="form-control font-mono" placeholder="https://xyzprojectid.supabase.co" />
+        </div>
+
+        <div class="form-group">
+          <label>Supabase Public Anon Key <span class="req">*</span></label>
+          <input type="password" id="inputSupabaseAnonKey" class="form-control font-mono" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." />
+          <div class="input-hint">หาได้จากเมนู Supabase Dashboard ➔ Project Settings ➔ API ➔ anon public key</div>
+        </div>
+
+        <div style="background: var(--color-primary-light); padding: 12px 14px; border-radius: 8px; font-size: 0.8rem; color: var(--color-primary); border: 1px solid #bfdbfe;">
+          <strong>💡 โครงสร้างตาราง (SQL Migration):</strong>
+          <div>หากยังไม่ได้สร้างตารางใน Supabase สามารถคลิกปุ่มด้านล่างเพื่อคัดลอกคำสั่ง SQL ไปรันใน SQL Editor ของ Supabase ได้ทันที</div>
+        </div>
+      </div>
+      <div class="dispatch-modal-footer" style="justify-content: space-between;">
+        <button type="button" class="btn-secondary" id="btnCopySqlSchema">
+          <i data-lucide="copy"></i> คัดลอก SQL Schema
+        </button>
+        <div style="display: flex; gap: 8px;">
+          <button type="button" class="btn-secondary" id="btnCancelSupabase">ปิด</button>
+          <button type="button" class="btn-primary" id="btnSaveConnectSupabase">
+            <i data-lucide="check"></i> บันทึกและทดสอบเชื่อมต่อ
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Scripts -->
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
